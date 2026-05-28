@@ -1,6 +1,6 @@
 const DB_NAME = "gestion-veterinaria-v1";
 const DB_VERSION = 1;
-const APP_VERSION = "v0.4.0";
+const APP_VERSION = "v0.4.1";
 
 const catalogs = {
   cities: "Ciudades",
@@ -18,6 +18,31 @@ const catalogTables = {
   species: "species",
   breeds: "breeds",
   colors: "colors"
+};
+
+const allowedCountries = ["Mexico", "USA"];
+
+const knownCityLocations = {
+  hermosillo: { state: "Sonora", country: "Mexico" },
+  guaymas: { state: "Sonora", country: "Mexico" },
+  empalme: { state: "Sonora", country: "Mexico" },
+  "ciudad obregon": { state: "Sonora", country: "Mexico" },
+  obregon: { state: "Sonora", country: "Mexico" },
+  navojoa: { state: "Sonora", country: "Mexico" },
+  nogales: { state: "Sonora", country: "Mexico" },
+  caborca: { state: "Sonora", country: "Mexico" },
+  "san luis rio colorado": { state: "Sonora", country: "Mexico" },
+  "san luis": { state: "Sonora", country: "Mexico" },
+  mexicali: { state: "Baja California", country: "Mexico" },
+  tijuana: { state: "Baja California", country: "Mexico" },
+  ensenada: { state: "Baja California", country: "Mexico" },
+  "san diego": { state: "California", country: "USA" },
+  "los angeles": { state: "California", country: "USA" },
+  phoenix: { state: "Arizona", country: "USA" },
+  tucson: { state: "Arizona", country: "USA" },
+  yuma: { state: "Arizona", country: "USA" },
+  "nogales az": { state: "Arizona", country: "USA" },
+  "las vegas": { state: "Nevada", country: "USA" }
 };
 
 let db;
@@ -125,7 +150,7 @@ async function seedCatalogs() {
   const defaults = {
     cities: ["Hermosillo"],
     states: ["Sonora"],
-    countries: ["Mexico"],
+    countries: allowedCountries,
     species: ["Canino", "Felino"],
     breeds: ["Mestizo"],
     colors: ["Blanco", "Negro", "Cafe", "Gris"]
@@ -354,6 +379,9 @@ function wireEvents() {
   $("signUpButton").addEventListener("click", signUp);
   $("signOutButton").addEventListener("click", signOut);
   $("clientForm").addEventListener("submit", saveClient);
+  $("clientCity").addEventListener("change", applyKnownCityLocation);
+  $("clientCity").addEventListener("blur", applyKnownCityLocation);
+  $("clientCountry").addEventListener("blur", normalizeClientCountry);
   $("petForm").addEventListener("submit", savePet);
   $("petBirthDate").addEventListener("input", updateAge);
   $("petPhoto").addEventListener("change", readPetPhoto);
@@ -476,7 +504,8 @@ function renderDatalists() {
   };
 
   Object.entries(map).forEach(([type, id]) => {
-    $(id).innerHTML = (state.catalogs[type] || [])
+    const values = type === "countries" ? allowedCountries : (state.catalogs[type] || []);
+    $(id).innerHTML = values
       .map((value) => `<option value="${escapeHtml(value)}"></option>`)
       .join("");
   });
@@ -556,6 +585,31 @@ function normalizeText(value) {
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
     .trim();
+}
+
+function applyKnownCityLocation() {
+  const key = normalizeText($("clientCity").value);
+  const location = knownCityLocations[key];
+  if (!location) return;
+
+  if (!$("clientState").value.trim()) {
+    $("clientState").value = location.state;
+  }
+  if (!$("clientCountry").value.trim()) {
+    $("clientCountry").value = location.country;
+  }
+}
+
+function normalizeClientCountry() {
+  $("clientCountry").value = normalizeCountryName($("clientCountry").value);
+}
+
+function normalizeCountryName(value) {
+  const key = normalizeText(value);
+  if (!key) return "";
+  if (["mexico", "méxico", "mx"].includes(key)) return "Mexico";
+  if (["usa", "us", "u.s.", "u.s.a.", "estados unidos", "united states"].includes(key)) return "USA";
+  return value.trim();
 }
 
 function renderClientForm() {
@@ -707,12 +761,16 @@ async function saveClient(event) {
     address: $("clientAddress").value.trim(),
     city: $("clientCity").value.trim(),
     state: $("clientState").value.trim(),
-    country: $("clientCountry").value.trim(),
+    country: normalizeCountryName($("clientCountry").value),
     notice: $("clientNotice").value.trim(),
     updatedAt: new Date().toISOString()
   };
 
   if (!client.fullName) return;
+  if (client.country && !allowedCountries.includes(client.country)) {
+    flashStatus("Pais permitido: Mexico o USA");
+    return;
+  }
 
   try {
     if (state.storageMode === "supabase") {
@@ -731,6 +789,7 @@ async function saveClient(event) {
     renderAll();
     flashStatus("Cliente guardado");
   } catch (error) {
+    console.error(error);
     flashStatus(error.message || "No se pudo guardar");
   }
 }
@@ -1000,11 +1059,12 @@ async function getOrCreateServiceItem(name, price) {
 async function getOrCreateCatalogId(table, name) {
   const clean = (name || "").trim();
   if (!clean) return null;
+  const value = table === "countries" ? normalizeCountryName(clean) : clean;
 
   const { data: existing, error: selectError } = await supabaseClient
     .from(table)
     .select("id")
-    .eq("name", clean)
+    .eq("name", value)
     .maybeSingle();
 
   throwIfSupabaseError(selectError);
@@ -1012,7 +1072,7 @@ async function getOrCreateCatalogId(table, name) {
 
   const { data: inserted, error: insertError } = await supabaseClient
     .from(table)
-    .insert({ name: clean })
+    .upsert({ name: value }, { onConflict: "name" })
     .select("id")
     .single();
 
