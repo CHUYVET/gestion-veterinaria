@@ -15,7 +15,7 @@
       <h1>Gestion de clientes y mascotas</h1>
     </div>
     <div class="topbar-actions">
-      <div class="version-pill" id="appVersion">v0.4.0</div>
+      <div class="version-pill" id="appVersion">v0.4.2</div>
       <div class="status-pill" id="storageStatus">Iniciando</div>
       <button class="ghost-button" id="refreshAppButton" type="button">Actualizar</button>
       <button class="ghost-button" id="signOutButton" type="button" hidden>Salir</button>
@@ -95,8 +95,9 @@
             <textarea id="clientNotice" rows="3" placeholder="Aparece resaltado si hay algo anotado"></textarea>
           </div>
           <div class="actions span-3">
-            <button class="save-button" type="submit">Guardar cliente</button>
+            <button class="save-button" id="saveClientButton" type="button">Guardar cliente</button>
           </div>
+          <p class="form-message span-3" id="clientSaveMessage" aria-live="polite"></p>
         </form>
       </section>
 

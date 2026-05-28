@@ -1,6 +1,6 @@
 const DB_NAME = "gestion-veterinaria-v1";
 const DB_VERSION = 1;
-const APP_VERSION = "v0.4.1";
+const APP_VERSION = "v0.4.2";
 
 const catalogs = {
   cities: "Ciudades",
@@ -379,6 +379,7 @@ function wireEvents() {
   $("signUpButton").addEventListener("click", signUp);
   $("signOutButton").addEventListener("click", signOut);
   $("clientForm").addEventListener("submit", saveClient);
+  $("saveClientButton").addEventListener("click", saveClient);
   $("clientCity").addEventListener("change", applyKnownCityLocation);
   $("clientCity").addEventListener("blur", applyKnownCityLocation);
   $("clientCountry").addEventListener("blur", normalizeClientCountry);
@@ -612,6 +613,13 @@ function normalizeCountryName(value) {
   return value.trim();
 }
 
+function setClientSaveMessage(message, type = "") {
+  const element = $("clientSaveMessage");
+  element.textContent = message;
+  element.classList.toggle("is-error", type === "error");
+  element.classList.toggle("is-success", type === "success");
+}
+
 function renderClientForm() {
   const client = state.clients.find((item) => item.id === state.selectedClientId);
   if (!client) {
@@ -754,6 +762,8 @@ function renderCatalogs() {
 
 async function saveClient(event) {
   event.preventDefault();
+  setClientSaveMessage("Guardando cliente...");
+  $("saveClientButton").disabled = true;
   const client = {
     id: $("clientId").value || crypto.randomUUID(),
     admissionDate: $("clientAdmissionDate").value,
@@ -766,9 +776,15 @@ async function saveClient(event) {
     updatedAt: new Date().toISOString()
   };
 
-  if (!client.fullName) return;
+  if (!client.fullName) {
+    setClientSaveMessage("Escribe el nombre completo del cliente.", "error");
+    $("saveClientButton").disabled = false;
+    return;
+  }
   if (client.country && !allowedCountries.includes(client.country)) {
+    setClientSaveMessage("Pais permitido: Mexico o USA.", "error");
     flashStatus("Pais permitido: Mexico o USA");
+    $("saveClientButton").disabled = false;
     return;
   }
 
@@ -787,10 +803,15 @@ async function saveClient(event) {
     state.selectedClientId = client.id;
     await loadState();
     renderAll();
+    setClientSaveMessage("Cliente guardado correctamente.", "success");
     flashStatus("Cliente guardado");
   } catch (error) {
     console.error(error);
-    flashStatus(error.message || "No se pudo guardar");
+    const message = error.message || "No se pudo guardar el cliente";
+    setClientSaveMessage(message, "error");
+    flashStatus(message);
+  } finally {
+    $("saveClientButton").disabled = false;
   }
 }
 
@@ -1137,6 +1158,7 @@ function newClient() {
   state.selectedVisitId = null;
   $("clientForm").reset();
   $("petForm").reset();
+  setClientSaveMessage("");
   setInitialDefaults();
   setPhotoPreview("");
   renderClientList();
