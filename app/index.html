@@ -1,0 +1,249 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f766e">
+  <title>Gestion Veterinaria</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div>
+      <p class="eyebrow">Clinica veterinaria</p>
+      <h1>Gestion de clientes y mascotas</h1>
+    </div>
+    <div class="topbar-actions">
+      <div class="version-pill" id="appVersion">v0.4.0</div>
+      <div class="status-pill" id="storageStatus">Iniciando</div>
+      <button class="ghost-button" id="refreshAppButton" type="button">Actualizar</button>
+      <button class="ghost-button" id="signOutButton" type="button" hidden>Salir</button>
+    </div>
+  </header>
+
+  <section class="auth-panel" id="authPanel">
+    <form class="auth-card" id="authForm">
+      <div>
+        <p class="eyebrow">Acceso seguro</p>
+        <h2>Iniciar sesion</h2>
+      </div>
+      <div class="field">
+        <label for="authEmail">Correo</label>
+        <input id="authEmail" type="email" autocomplete="email" value="drmartinezlopez@gmail.com" required>
+      </div>
+      <div class="field">
+        <label for="authPassword">Contrasena</label>
+        <input id="authPassword" type="password" autocomplete="current-password" required>
+      </div>
+      <div class="auth-actions">
+        <button class="save-button" id="signInButton" type="submit">Entrar</button>
+        <button class="secondary-button" id="signUpButton" type="button">Crear acceso</button>
+      </div>
+      <p class="auth-message" id="authMessage"></p>
+    </form>
+  </section>
+
+  <main class="shell" id="appShell" hidden>
+    <aside class="sidebar">
+      <div class="search-box">
+        <label for="searchInput">Buscar</label>
+        <input id="searchInput" type="search" placeholder="Cliente, mascota, raza, ciudad, aviso...">
+        <output class="search-count" id="searchCount">Sin busqueda</output>
+      </div>
+      <button class="primary-action" id="newClientButton" type="button">Nuevo cliente</button>
+      <div class="client-list" id="clientList" aria-live="polite"></div>
+    </aside>
+
+    <section class="workspace">
+      <nav class="tabs" aria-label="Secciones">
+        <button class="tab is-active" data-tab="cliente" type="button">Cliente</button>
+        <button class="tab" data-tab="mascotas" type="button">Mascotas</button>
+        <button class="tab" data-tab="visitas" type="button">Visitas</button>
+        <button class="tab" data-tab="catalogos" type="button">Catalogos</button>
+      </nav>
+
+      <section class="panel is-active" id="tab-cliente">
+        <form id="clientForm" class="form-grid">
+          <input type="hidden" id="clientId">
+          <div class="field">
+            <label for="clientAdmissionDate">Fecha de ingreso</label>
+            <input id="clientAdmissionDate" type="date" required>
+          </div>
+          <div class="field span-2">
+            <label for="clientFullName">Nombre completo</label>
+            <input id="clientFullName" type="text" autocomplete="name" required>
+          </div>
+          <div class="field span-3">
+            <label for="clientAddress">Direccion</label>
+            <input id="clientAddress" type="text" autocomplete="street-address">
+          </div>
+          <div class="field">
+            <label for="clientCity">Ciudad</label>
+            <input id="clientCity" type="text" list="citiesList">
+          </div>
+          <div class="field">
+            <label for="clientState">Estado</label>
+            <input id="clientState" type="text" list="statesList">
+          </div>
+          <div class="field">
+            <label for="clientCountry">Pais</label>
+            <input id="clientCountry" type="text" list="countriesList">
+          </div>
+          <div class="field span-3">
+            <label for="clientNotice">Aviso</label>
+            <textarea id="clientNotice" rows="3" placeholder="Aparece resaltado si hay algo anotado"></textarea>
+          </div>
+          <div class="actions span-3">
+            <button class="save-button" type="submit">Guardar cliente</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="panel" id="tab-mascotas">
+        <div class="split-layout">
+          <form id="petForm" class="form-grid compact">
+            <input type="hidden" id="petId">
+            <div class="field">
+              <label for="petAdmissionDate">Fecha de ingreso</label>
+              <input id="petAdmissionDate" type="date" required>
+            </div>
+            <div class="field">
+              <label for="petName">Nombre</label>
+              <input id="petName" type="text" required>
+            </div>
+            <div class="field">
+              <label for="petSpecies">Especie</label>
+              <input id="petSpecies" type="text" list="speciesList">
+            </div>
+            <div class="field">
+              <label for="petSex">Sexo</label>
+              <select id="petSex">
+                <option>Macho</option>
+                <option>Hembra</option>
+                <option>Indeterminado</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="petBreed">Raza</label>
+              <input id="petBreed" type="text" list="breedsList">
+            </div>
+            <div class="field">
+              <label for="petColor">Color</label>
+              <input id="petColor" type="text" list="colorsList">
+            </div>
+            <div class="field">
+              <label for="petBirthDate">Fecha de nacimiento</label>
+              <input id="petBirthDate" type="date">
+            </div>
+            <div class="field">
+              <label>Edad</label>
+              <output id="petAge">Sin fecha</output>
+            </div>
+            <div class="field span-2">
+              <label for="petPhoto">Foto</label>
+              <input id="petPhoto" type="file" accept="image/*">
+            </div>
+            <div class="field span-2">
+              <label for="petNotice">Aviso</label>
+              <textarea id="petNotice" rows="3" placeholder="Aparece resaltado si hay algo anotado"></textarea>
+            </div>
+            <div class="actions span-2">
+              <button class="save-button" type="submit">Guardar mascota</button>
+            </div>
+          </form>
+
+          <div class="pet-column">
+            <div class="photo-frame">
+              <img id="petPreview" alt="Foto de la mascota">
+              <span id="photoPlaceholder">Sin foto</span>
+            </div>
+            <div class="pet-list" id="petList"></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="tab-visitas">
+        <form id="visitDraftForm" class="form-grid">
+          <div class="field">
+            <label for="visitDate">Fecha de visita</label>
+            <input id="visitDate" type="datetime-local">
+          </div>
+          <div class="field span-2">
+            <label for="visitPetName">Mascota seleccionada</label>
+            <input id="visitPetName" type="text" readonly>
+          </div>
+          <div class="field span-3">
+            <label for="ownerComplaint">Queja del dueno</label>
+            <textarea id="ownerComplaint" rows="3"></textarea>
+          </div>
+          <div class="field span-3">
+            <label for="physiologicalConstants">Constantes fisiologicas</label>
+            <textarea id="physiologicalConstants" rows="3" placeholder="Temperatura, peso, frecuencia cardiaca, frecuencia respiratoria..."></textarea>
+          </div>
+          <div class="field span-3">
+            <label for="symptoms">Sintomas</label>
+            <textarea id="symptoms" rows="3"></textarea>
+          </div>
+          <div class="field span-2">
+            <label for="prognosis">Pronostico</label>
+            <input id="prognosis" type="text">
+          </div>
+          <div class="field">
+            <label for="diagnosis">Diagnostico</label>
+            <input id="diagnosis" type="text">
+          </div>
+          <div class="actions span-3">
+            <button class="save-button" id="saveVisitDraft" type="button">Guardar visita</button>
+          </div>
+        </form>
+        <div class="timeline" id="visitList"></div>
+        <section class="subpanel">
+          <div class="section-heading">
+            <h2>Recibo de pago</h2>
+            <p id="receiptVisitLabel">Selecciona una visita para capturar recibos.</p>
+          </div>
+          <form id="receiptForm" class="form-grid">
+            <div class="field span-2">
+              <label for="receiptDescription">Concepto</label>
+              <input id="receiptDescription" type="text" list="serviceItemsList" placeholder="Consulta, vacuna rabia, desparasitacion...">
+            </div>
+            <div class="field">
+              <label for="receiptQuantity">Cantidad</label>
+              <input id="receiptQuantity" type="number" min="0.01" step="0.01" value="1">
+            </div>
+            <div class="field">
+              <label for="receiptUnitPrice">Precio unitario</label>
+              <input id="receiptUnitPrice" type="number" min="0" step="0.01" value="0">
+            </div>
+            <div class="field">
+              <label>Total</label>
+              <output id="receiptTotal">$0.00</output>
+            </div>
+            <div class="actions">
+              <button class="save-button" id="saveReceiptButton" type="submit">Guardar recibo</button>
+            </div>
+          </form>
+          <div class="timeline" id="receiptList"></div>
+        </section>
+      </section>
+
+      <section class="panel" id="tab-catalogos">
+        <div class="catalog-grid" id="catalogPanel"></div>
+      </section>
+    </section>
+  </main>
+
+  <datalist id="citiesList"></datalist>
+  <datalist id="statesList"></datalist>
+  <datalist id="countriesList"></datalist>
+  <datalist id="speciesList"></datalist>
+  <datalist id="breedsList"></datalist>
+  <datalist id="colorsList"></datalist>
+  <datalist id="serviceItemsList"></datalist>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
