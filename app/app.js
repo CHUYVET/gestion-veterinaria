@@ -1,6 +1,6 @@
 const DB_NAME = "gestion-veterinaria-v1";
 const DB_VERSION = 1;
-const APP_VERSION = "v0.4.4";
+const APP_VERSION = "v0.4.5";
 
 const catalogs = {
   cities: "Ciudades",
@@ -794,6 +794,7 @@ async function saveClient(event) {
 
   try {
     if (state.storageMode === "supabase") {
+      setClientSaveMessage("Guardando cliente en Supabase...");
       await saveRemoteClient(client);
     } else {
       await Promise.all([
@@ -805,6 +806,7 @@ async function saveClient(event) {
     }
 
     state.selectedClientId = client.id;
+    setClientSaveMessage("Cliente guardado. Actualizando lista...");
     await loadState();
     renderAll();
     setClientSaveMessage("Cliente guardado correctamente.", "success");
@@ -942,32 +944,71 @@ async function saveReceipt(event) {
 }
 
 async function saveRemoteClient(client) {
-  const { error } = await withTimeout(
-    supabaseClient.rpc("save_client_with_location", {
-      p_id: client.id,
-      p_admission_date: client.admissionDate,
-      p_full_name: client.fullName,
-      p_address: client.address || null,
-      p_city: client.city || null,
-      p_state: client.state || null,
-      p_country: client.country || null,
-      p_notice: client.notice || null,
-      p_updated_at: client.updatedAt
-    }),
-    12000,
-    "Supabase no respondio al guardar el cliente. Revisa la conexion e intenta otra vez."
+  const accessToken = await getSupabaseAccessToken();
+  const response = await fetchWithTimeout(
+    `${window.SUPABASE_CONFIG.url}/rest/v1/rpc/save_client_with_location`,
+    {
+      method: "POST",
+      headers: {
+        "apikey": window.SUPABASE_CONFIG.publishableKey,
+        "Authorization": `Bearer ${accessToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        p_id: client.id,
+        p_admission_date: client.admissionDate,
+        p_full_name: client.fullName,
+        p_address: client.address || null,
+        p_city: client.city || null,
+        p_state: client.state || null,
+        p_country: client.country || null,
+        p_notice: client.notice || null,
+        p_updated_at: client.updatedAt
+      })
+    },
+    60000,
+    "Supabase tardo demasiado al guardar el cliente. Revisa la conexion e intenta otra vez."
   );
 
-  throwIfSupabaseError(error);
+  if (!response.ok) {
+    throw new Error(await readSupabaseError(response));
+  }
 }
 
-function withTimeout(promise, milliseconds, message) {
-  let timeoutId;
-  const timeout = new Promise((_, reject) => {
-    timeoutId = window.setTimeout(() => reject(new Error(message)), milliseconds);
-  });
+async function getSupabaseAccessToken() {
+  if (state.session?.access_token) return state.session.access_token;
+  const { data, error } = await supabaseClient.auth.getSession();
+  throwIfSupabaseError(error);
+  state.session = data.session;
+  if (!state.session?.access_token) {
+    throw new Error("La sesion expiro. Vuelve a iniciar sesion.");
+  }
+  return state.session.access_token;
+}
 
-  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
+async function fetchWithTimeout(url, options, milliseconds, message) {
+  const controller = new AbortController();
+  const timeoutId = window.setTimeout(() => controller.abort(), milliseconds);
+
+  try {
+    return await fetch(url, { ...options, signal: controller.signal });
+  } catch (error) {
+    if (error.name === "AbortError") {
+      throw new Error(message);
+    }
+    throw error;
+  } finally {
+    window.clearTimeout(timeoutId);
+  }
+}
+
+async function readSupabaseError(response) {
+  try {
+    const payload = await response.json();
+    return payload.message || payload.error_description || payload.error || "No se pudo guardar el cliente en Supabase.";
+  } catch (_error) {
+    return "No se pudo guardar el cliente en Supabase.";
+  }
 }
 
 async function saveRemotePet(pet) {
