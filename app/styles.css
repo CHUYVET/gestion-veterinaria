@@ -238,6 +238,15 @@ button {
   color: var(--teal-dark);
 }
 
+.form-mode {
+  background: var(--surface-strong);
+  border: 1px solid #99f6e4;
+  border-radius: 8px;
+  color: var(--teal-dark);
+  font-weight: 800;
+  padding: 10px 12px;
+}
+
 .client-list,
 .pet-list,
 .timeline {

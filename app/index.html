@@ -15,7 +15,7 @@
       <h1>Gestion de clientes y mascotas</h1>
     </div>
     <div class="topbar-actions">
-      <div class="version-pill" id="appVersion">v0.4.3</div>
+      <div class="version-pill" id="appVersion">v0.4.4</div>
       <div class="status-pill" id="storageStatus">Iniciando</div>
       <button class="ghost-button" id="refreshAppButton" type="button">Actualizar</button>
       <button class="ghost-button" id="signOutButton" type="button" hidden>Salir</button>
@@ -66,6 +66,7 @@
       <section class="panel is-active" id="tab-cliente">
         <form id="clientForm" class="form-grid">
           <input type="hidden" id="clientId">
+          <div class="form-mode span-3" id="clientModeLabel">Editando cliente seleccionado</div>
           <div class="field">
             <label for="clientAdmissionDate">Fecha de ingreso</label>
             <input id="clientAdmissionDate" type="date" required>
@@ -95,7 +96,7 @@
             <textarea id="clientNotice" rows="3" placeholder="Aparece resaltado si hay algo anotado"></textarea>
           </div>
           <div class="actions span-3">
-            <button class="save-button" id="saveClientButton" type="button">Guardar cliente</button>
+            <button class="save-button" id="saveClientButton" type="button">Actualizar cliente</button>
           </div>
           <p class="form-message span-3" id="clientSaveMessage" aria-live="polite"></p>
         </form>

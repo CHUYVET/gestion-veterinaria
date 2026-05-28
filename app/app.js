@@ -1,6 +1,6 @@
 const DB_NAME = "gestion-veterinaria-v1";
 const DB_VERSION = 1;
-const APP_VERSION = "v0.4.3";
+const APP_VERSION = "v0.4.4";
 
 const catalogs = {
   cities: "Ciudades",
@@ -625,10 +625,14 @@ function renderClientForm() {
   if (!client) {
     $("clientForm").reset();
     $("clientId").value = "";
+    $("clientModeLabel").textContent = "Capturando cliente nuevo";
+    $("saveClientButton").textContent = "Guardar nuevo cliente";
     setClientDateDefault();
     return;
   }
 
+  $("clientModeLabel").textContent = "Editando cliente seleccionado";
+  $("saveClientButton").textContent = "Actualizar cliente";
   $("clientId").value = client.id;
   $("clientAdmissionDate").value = client.admissionDate;
   $("clientFullName").value = client.fullName;
@@ -1164,6 +1168,9 @@ function newClient() {
   state.selectedPetId = null;
   state.selectedVisitId = null;
   $("clientForm").reset();
+  $("clientId").value = "";
+  $("clientModeLabel").textContent = "Capturando cliente nuevo";
+  $("saveClientButton").textContent = "Guardar nuevo cliente";
   $("petForm").reset();
   setClientSaveMessage("");
   setInitialDefaults();
