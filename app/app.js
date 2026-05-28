@@ -1,6 +1,6 @@
 const DB_NAME = "gestion-veterinaria-v1";
 const DB_VERSION = 1;
-const APP_VERSION = "v0.4.2";
+const APP_VERSION = "v0.4.3";
 
 const catalogs = {
   cities: "Ciudades",
@@ -938,25 +938,32 @@ async function saveReceipt(event) {
 }
 
 async function saveRemoteClient(client) {
-  const [cityId, stateId, countryId] = await Promise.all([
-    getOrCreateCatalogId("cities", client.city),
-    getOrCreateCatalogId("states", client.state),
-    getOrCreateCatalogId("countries", client.country)
-  ]);
-
-  const { error } = await supabaseClient.from("clients").upsert({
-    id: client.id,
-    admission_date: client.admissionDate,
-    full_name: client.fullName,
-    address: client.address || null,
-    city_id: cityId,
-    state_id: stateId,
-    country_id: countryId,
-    notice: client.notice || null,
-    updated_at: client.updatedAt
-  });
+  const { error } = await withTimeout(
+    supabaseClient.rpc("save_client_with_location", {
+      p_id: client.id,
+      p_admission_date: client.admissionDate,
+      p_full_name: client.fullName,
+      p_address: client.address || null,
+      p_city: client.city || null,
+      p_state: client.state || null,
+      p_country: client.country || null,
+      p_notice: client.notice || null,
+      p_updated_at: client.updatedAt
+    }),
+    12000,
+    "Supabase no respondio al guardar el cliente. Revisa la conexion e intenta otra vez."
+  );
 
   throwIfSupabaseError(error);
+}
+
+function withTimeout(promise, milliseconds, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), milliseconds);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
 }
 
 async function saveRemotePet(pet) {
