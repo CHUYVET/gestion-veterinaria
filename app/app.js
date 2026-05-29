@@ -1,6 +1,7 @@
 const DB_NAME = "gestion-veterinaria-v1";
 const DB_VERSION = 1;
-const APP_VERSION = "v0.4.7";
+const APP_VERSION = "v0.4.8";
+const PET_PHOTO_MAX_SIZE = 1400;
 
 const catalogs = {
   cities: "Ciudades",
@@ -1059,9 +1060,11 @@ function setTemporaryClientSaveMessage(message, type, clientId) {
 
 async function savePet(event) {
   event.preventDefault();
+  $("savePetButton").disabled = true;
   if (!state.selectedClientId) {
     flashStatus("Guarda primero un cliente");
     setPetSaveMessage("Guarda primero un cliente.", "error");
+    $("savePetButton").disabled = false;
     return;
   }
 
@@ -1077,6 +1080,7 @@ async function savePet(event) {
     color: $("petColor").value.trim(),
     birthDate: $("petBirthDate").value,
     photo: state.pendingPhoto || current?.photo || "",
+    photoUrl: state.pendingPhoto ? "" : (current?.photoUrl || ""),
     photoFile: state.pendingPhotoFile,
     notice: $("petNotice").value.trim(),
     updatedAt: new Date().toISOString()
@@ -1084,33 +1088,138 @@ async function savePet(event) {
 
   if (!pet.name) {
     setPetSaveMessage("Escribe el nombre de la mascota.", "error");
+    $("savePetButton").disabled = false;
     return;
   }
 
   try {
-    setPetSaveMessage("Guardando mascota...");
-    if (state.storageMode === "supabase") {
-      await saveRemotePet(pet);
-    } else {
-      await Promise.all([
-        put("pets", pet),
-        remember("species", pet.species),
-        remember("breeds", pet.breed),
-        remember("colors", pet.color)
-      ]);
-    }
-
+    await savePetLocally(pet);
     state.selectedPetId = pet.id;
     state.isAddingPet = false;
-    await loadState();
+    upsertPetInMemory(pet);
+    keepValidSelection();
     renderAll();
-    setPetSaveMessage("Mascota guardada correctamente.", "success");
-    flashStatus("Mascota guardada");
+
+    if (state.storageMode === "supabase") {
+      setPetSaveMessage("Guardado en pantalla. Confirmando Supabase...");
+      flashStatus("Confirmando mascota");
+      showLongPetSyncHint(pet.id);
+      syncPetInBackground(pet);
+    } else {
+      setPetSaveMessage("Mascota guardada correctamente.", "success");
+      flashStatus("Mascota guardada");
+    }
   } catch (error) {
+    console.error(error);
     const message = error.message || "No se pudo guardar mascota";
     setPetSaveMessage(message, "error");
     flashStatus(message);
+  } finally {
+    $("savePetButton").disabled = false;
   }
+}
+
+async function savePetLocally(pet) {
+  const { photoFile, ...localPet } = pet;
+  await Promise.all([
+    put("pets", localPet),
+    remember("species", pet.species),
+    remember("breeds", pet.breed),
+    remember("colors", pet.color)
+  ]);
+}
+
+function upsertPetInMemory(pet) {
+  const { photoFile, ...localPet } = pet;
+  const index = state.pets.findIndex((item) => item.id === localPet.id);
+  if (index >= 0) {
+    state.pets[index] = localPet;
+  } else {
+    state.pets.push(localPet);
+  }
+  state.pets.sort(sortByName("name"));
+}
+
+async function syncPetInBackground(pet) {
+  try {
+    await promiseWithTimeout(
+      saveRemotePet(pet),
+      60000,
+      "Supabase tardo demasiado al guardar la mascota."
+    );
+    await promiseWithTimeout(
+      verifyRemotePet(pet.id),
+      20000,
+      "Supabase guardo lento y no se pudo confirmar todavia."
+    );
+    setTemporaryPetSaveMessage("Mascota sincronizada en Supabase.", "success", pet.id);
+    await refreshRemoteStateAfterPetSync(pet.id);
+    flashStatus("Mascota sincronizada");
+  } catch (error) {
+    console.error(error);
+    if (state.selectedPetId === pet.id) {
+      setPetSaveMessage("Guardada localmente, pendiente de sincronizar. Revisa la conexion o intenta guardar otra vez.", "error");
+    }
+    flashStatus("Mascota pendiente de sincronizar");
+  }
+}
+
+async function verifyRemotePet(petId) {
+  const { data, error } = await supabaseClient
+    .from("pets")
+    .select("id")
+    .eq("id", petId)
+    .maybeSingle();
+
+  throwIfSupabaseError(error);
+  if (!data?.id) {
+    throw new Error("Supabase no confirmo la mascota guardada.");
+  }
+}
+
+async function refreshRemoteStateAfterPetSync(petId) {
+  try {
+    if (state.storageMode === "supabase") {
+      const currentMessage = $("petSaveMessage").textContent;
+      state.selectedPetId = petId;
+      state.isAddingPet = false;
+      await loadState();
+      renderAll();
+      if (state.selectedPetId === petId && currentMessage) {
+        setPetSaveMessage(currentMessage, currentMessage.includes("sincronizada") ? "success" : "");
+      }
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function showLongPetSyncHint(petId) {
+  window.setTimeout(() => {
+    if (state.selectedPetId !== petId) return;
+    if ($("petSaveMessage").textContent === "Guardado en pantalla. Confirmando Supabase...") {
+      setPetSaveMessage("Guardado localmente. Supabase sigue confirmando...");
+    }
+  }, 5000);
+}
+
+function setTemporaryPetSaveMessage(message, type, petId) {
+  setPetSaveMessage(message, type);
+  window.setTimeout(() => {
+    if (state.selectedPetId !== petId) return;
+    if ($("petSaveMessage").textContent === message) {
+      setPetSaveMessage("");
+    }
+  }, 4500);
+}
+
+function promiseWithTimeout(promise, milliseconds, message) {
+  let timeoutId;
+  const timeout = new Promise((_, reject) => {
+    timeoutId = window.setTimeout(() => reject(new Error(message)), milliseconds);
+  });
+
+  return Promise.race([promise, timeout]).finally(() => window.clearTimeout(timeoutId));
 }
 
 async function saveVisit() {
@@ -1308,7 +1417,7 @@ async function saveRemotePet(pet) {
 }
 
 async function uploadPetPhoto(pet) {
-  if (!pet.photoFile) return pet.photo || null;
+  if (!pet.photoFile) return isDataUrl(pet.photo) ? null : (pet.photo || null);
 
   const extension = getFileExtension(pet.photoFile.name);
   const path = `${pet.id}/${Date.now()}.${extension}`;
@@ -1324,9 +1433,17 @@ async function uploadPetPhoto(pet) {
 }
 
 function getFileExtension(fileName) {
-  const extension = (fileName.split(".").pop() || "jpg").toLowerCase();
+  const extension = getRawFileExtension(fileName) || "jpg";
   if (["jpg", "jpeg", "png", "webp"].includes(extension)) return extension;
   return "jpg";
+}
+
+function getRawFileExtension(fileName) {
+  return (String(fileName || "").split(".").pop() || "").toLowerCase();
+}
+
+function isDataUrl(value) {
+  return String(value || "").startsWith("data:");
 }
 
 async function saveRemoteVisit(visit) {
@@ -1542,16 +1659,86 @@ function activateTab(name) {
   });
 }
 
-function readPetPhoto(event) {
+async function readPetPhoto(event) {
   const file = event.target.files[0];
   if (!file) return;
-  const reader = new FileReader();
-  reader.onload = () => {
-    state.pendingPhoto = reader.result;
-    state.pendingPhotoFile = file;
+
+  if (!isSupportedPetPhoto(file)) {
+    event.target.value = "";
+    state.pendingPhoto = "";
+    state.pendingPhotoFile = null;
+    setPhotoPreview("");
+    setPetSaveMessage("La foto debe ser JPG, PNG o WEBP.", "error");
+    flashStatus("Formato de foto no compatible");
+    return;
+  }
+
+  try {
+    setPetSaveMessage("Preparando foto...");
+    const prepared = await preparePetPhoto(file);
+    state.pendingPhoto = prepared.preview;
+    state.pendingPhotoFile = prepared.file;
     setPhotoPreview(state.pendingPhoto);
-  };
-  reader.readAsDataURL(file);
+    setPetSaveMessage("Foto lista para guardar.", "success");
+  } catch (error) {
+    console.error(error);
+    event.target.value = "";
+    state.pendingPhoto = "";
+    state.pendingPhotoFile = null;
+    setPhotoPreview("");
+    setPetSaveMessage("No se pudo preparar la foto. Intenta con JPG, PNG o WEBP.", "error");
+  }
+}
+
+function isSupportedPetPhoto(file) {
+  const extension = getRawFileExtension(file.name);
+  return ["image/jpeg", "image/png", "image/webp"].includes(file.type)
+    || ["jpg", "jpeg", "png", "webp"].includes(extension);
+}
+
+async function preparePetPhoto(file) {
+  const originalPreview = await fileToDataUrl(file);
+  const resized = await resizePhotoToJpeg(originalPreview, file.name);
+  return resized || { preview: originalPreview, file };
+}
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(file);
+  });
+}
+
+function resizePhotoToJpeg(dataUrl, fileName) {
+  return new Promise((resolve) => {
+    const image = new Image();
+    image.onload = () => {
+      const scale = Math.min(1, PET_PHOTO_MAX_SIZE / Math.max(image.width, image.height));
+      const width = Math.max(1, Math.round(image.width * scale));
+      const height = Math.max(1, Math.round(image.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = width;
+      canvas.height = height;
+      const context = canvas.getContext("2d");
+      context.drawImage(image, 0, 0, width, height);
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          resolve(null);
+          return;
+        }
+        const baseName = String(fileName || "mascota").replace(/\.[^.]+$/, "") || "mascota";
+        const jpegFile = new File([blob], `${baseName}.jpg`, { type: "image/jpeg" });
+        const reader = new FileReader();
+        reader.onload = () => resolve({ preview: reader.result, file: jpegFile });
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(jpegFile);
+      }, "image/jpeg", 0.86);
+    };
+    image.onerror = () => resolve(null);
+    image.src = dataUrl;
+  });
 }
 
 function setPhotoPreview(src) {

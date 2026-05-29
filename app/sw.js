@@ -1,4 +1,4 @@
-const CACHE_NAME = "gestion-veterinaria-static-v11";
+const CACHE_NAME = "gestion-veterinaria-static-v12";
 const ASSETS = [
   "./",
   "./index.html",
