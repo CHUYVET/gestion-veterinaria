@@ -1,3 +1,8 @@
+[data-tab="catalogos"],
+#tab-catalogos {
+  display: none !important;
+}
+
 .photo-frame {
   background: #ffffff !important;
   padding: 8px !important;
