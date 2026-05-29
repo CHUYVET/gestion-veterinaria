@@ -35,7 +35,7 @@ const knownCityLocations = {
   caborca: { state: "Sonora", country: "Mexico" },
   "puerto penasco": { state: "Sonora", country: "Mexico" },
   "san luis rio colorado": { state: "Sonora", country: "Mexico" },
-  "san luis": { state: "Sonora", country: "Mexico" },
+  "san luis rio colorado sonora": { state: "Sonora", country: "Mexico" },
   mexicali: { state: "Baja California", country: "Mexico" },
   tijuana: { state: "Baja California", country: "Mexico" },
   ensenada: { state: "Baja California", country: "Mexico" },
@@ -43,7 +43,11 @@ const knownCityLocations = {
   "el centro": { state: "California", country: "USA" },
   "san diego": { state: "California", country: "USA" },
   "los angeles": { state: "California", country: "USA" },
+  "san luis": { state: "Arizona", country: "USA" },
   "san luis az": { state: "Arizona", country: "USA" },
+  "san luis arizona": { state: "Arizona", country: "USA" },
+  "san luis, arizona": { state: "Arizona", country: "USA" },
+  "san luis arizona usa": { state: "Arizona", country: "USA" },
   somerton: { state: "Arizona", country: "USA" },
   phoenix: { state: "Arizona", country: "USA" },
   tucson: { state: "Arizona", country: "USA" },
@@ -154,6 +158,7 @@ let state = {
   selectedClientId: null,
   selectedPetId: null,
   selectedVisitId: null,
+  isAddingPet: false,
   pendingPhoto: "",
   pendingPhotoFile: null,
   session: null,
@@ -437,11 +442,13 @@ function keepValidSelection() {
 
   if (state.selectedClientId && !state.clients.some((client) => client.id === state.selectedClientId)) {
     state.selectedClientId = state.clients[0]?.id || null;
+    state.isAddingPet = false;
   }
 
   const pets = state.pets.filter((pet) => pet.clientId === state.selectedClientId);
   if (state.selectedPetId && !pets.some((pet) => pet.id === state.selectedPetId)) {
     state.selectedPetId = pets[0]?.id || null;
+    state.isAddingPet = false;
   }
 
   const visits = state.visits.filter((visit) => visit.petId === state.selectedPetId);
@@ -482,6 +489,7 @@ function wireEvents() {
   $("petBirthDate").addEventListener("input", updateAge);
   $("petPhoto").addEventListener("change", readPetPhoto);
   $("newClientButton").addEventListener("click", newClient);
+  $("newPetButton").addEventListener("click", newPet);
   $("searchInput").addEventListener("input", renderClientList);
   $("saveVisitDraft").addEventListener("click", saveVisit);
   $("receiptForm").addEventListener("submit", saveReceipt);
@@ -759,6 +767,13 @@ function setClientSaveMessage(message, type = "") {
   element.classList.toggle("is-success", type === "success");
 }
 
+function setPetSaveMessage(message, type = "") {
+  const element = $("petSaveMessage");
+  element.textContent = message;
+  element.classList.toggle("is-error", type === "error");
+  element.classList.toggle("is-success", type === "success");
+}
+
 function renderClientForm() {
   const client = state.clients.find((item) => item.id === state.selectedClientId);
   if (!client) {
@@ -784,8 +799,10 @@ function renderClientForm() {
 
 function renderPetList() {
   const pets = state.pets.filter((pet) => pet.clientId === state.selectedClientId);
-  if (!state.selectedPetId && pets.length) state.selectedPetId = pets[0].id;
-  if (!pets.some((pet) => pet.id === state.selectedPetId)) state.selectedPetId = pets[0]?.id || null;
+  if (!state.isAddingPet && !state.selectedPetId && pets.length) state.selectedPetId = pets[0].id;
+  if (!pets.some((pet) => pet.id === state.selectedPetId)) {
+    state.selectedPetId = state.isAddingPet ? null : (pets[0]?.id || null);
+  }
 
   $("petList").innerHTML = pets.length ? pets.map((pet) => `
     <button class="pet-row ${pet.id === state.selectedPetId ? "is-active" : ""}" data-pet="${pet.id}" type="button">
@@ -809,8 +826,11 @@ function renderPetForm() {
   state.pendingPhoto = "";
   state.pendingPhotoFile = null;
   setPetDateDefault();
+  setPetSaveMessage("");
 
-  if (pet) {
+  if (pet && !state.isAddingPet) {
+    $("petModeLabel").textContent = "Editando mascota seleccionada";
+    $("savePetButton").textContent = "Actualizar mascota";
     $("petId").value = pet.id;
     $("petAdmissionDate").value = pet.admissionDate;
     $("petName").value = pet.name;
@@ -822,6 +842,8 @@ function renderPetForm() {
     $("petNotice").value = pet.notice || "";
     setPhotoPreview(pet.photoUrl || pet.photo || "");
   } else {
+    $("petModeLabel").textContent = "Capturando mascota nueva";
+    $("savePetButton").textContent = "Guardar nueva mascota";
     $("petId").value = "";
     setPhotoPreview("");
   }
@@ -1039,6 +1061,7 @@ async function savePet(event) {
   event.preventDefault();
   if (!state.selectedClientId) {
     flashStatus("Guarda primero un cliente");
+    setPetSaveMessage("Guarda primero un cliente.", "error");
     return;
   }
 
@@ -1059,9 +1082,13 @@ async function savePet(event) {
     updatedAt: new Date().toISOString()
   };
 
-  if (!pet.name) return;
+  if (!pet.name) {
+    setPetSaveMessage("Escribe el nombre de la mascota.", "error");
+    return;
+  }
 
   try {
+    setPetSaveMessage("Guardando mascota...");
     if (state.storageMode === "supabase") {
       await saveRemotePet(pet);
     } else {
@@ -1074,11 +1101,15 @@ async function savePet(event) {
     }
 
     state.selectedPetId = pet.id;
+    state.isAddingPet = false;
     await loadState();
     renderAll();
+    setPetSaveMessage("Mascota guardada correctamente.", "success");
     flashStatus("Mascota guardada");
   } catch (error) {
-    flashStatus(error.message || "No se pudo guardar");
+    const message = error.message || "No se pudo guardar mascota";
+    setPetSaveMessage(message, "error");
+    flashStatus(message);
   }
 }
 
@@ -1427,12 +1458,15 @@ async function remember(type, value) {
 function selectClient(id) {
   state.selectedClientId = id;
   state.selectedPetId = null;
+  state.selectedVisitId = null;
+  state.isAddingPet = false;
   renderAll();
 }
 
 function selectPet(id) {
   state.selectedPetId = id;
   state.selectedVisitId = null;
+  state.isAddingPet = false;
   renderPetList();
   renderPetForm();
   renderVisits();
@@ -1447,6 +1481,7 @@ function newClient() {
   state.selectedClientId = null;
   state.selectedPetId = null;
   state.selectedVisitId = null;
+  state.isAddingPet = false;
   $("clientForm").reset();
   $("clientId").value = "";
   $("clientModeLabel").textContent = "Capturando cliente nuevo";
@@ -1458,6 +1493,29 @@ function newClient() {
   renderClientList();
   renderPetList();
   renderVisits();
+}
+
+function newPet() {
+  if (!state.selectedClientId) {
+    setPetSaveMessage("Selecciona o guarda primero un cliente.", "error");
+    flashStatus("Selecciona un cliente");
+    return;
+  }
+
+  state.isAddingPet = true;
+  state.selectedPetId = null;
+  state.selectedVisitId = null;
+  state.pendingPhoto = "";
+  state.pendingPhotoFile = null;
+  $("petForm").reset();
+  $("petId").value = "";
+  setPetDateDefault();
+  setPhotoPreview("");
+  setPetSaveMessage("");
+  renderPetList();
+  renderPetForm();
+  renderVisits();
+  renderReceiptArea();
 }
 
 function fillReceiptPriceFromCatalog() {

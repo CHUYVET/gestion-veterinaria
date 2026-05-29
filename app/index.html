@@ -106,6 +106,7 @@
         <div class="split-layout">
           <form id="petForm" class="form-grid compact">
             <input type="hidden" id="petId">
+            <div class="form-mode span-2" id="petModeLabel">Editando mascota seleccionada</div>
             <div class="field">
               <label for="petAdmissionDate">Fecha de ingreso</label>
               <input id="petAdmissionDate" type="date" required>
@@ -151,8 +152,9 @@
               <textarea id="petNotice" rows="3" placeholder="Aparece resaltado si hay algo anotado"></textarea>
             </div>
             <div class="actions span-2">
-              <button class="save-button" type="submit">Guardar mascota</button>
+              <button class="save-button" id="savePetButton" type="submit">Actualizar mascota</button>
             </div>
+            <p class="form-message span-2" id="petSaveMessage" aria-live="polite"></p>
           </form>
 
           <div class="pet-column">
@@ -160,6 +162,7 @@
               <img id="petPreview" alt="Foto de la mascota">
               <span id="photoPlaceholder">Sin foto</span>
             </div>
+            <button class="primary-action" id="newPetButton" type="button">Nueva mascota</button>
             <div class="pet-list" id="petList"></div>
           </div>
         </div>
