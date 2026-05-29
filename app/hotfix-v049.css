@@ -4,11 +4,19 @@
   overflow: hidden !important;
 }
 
-.photo-frame img {
-  width: auto !important;
-  height: auto !important;
+.photo-frame img,
+.photo-frame.has-image img,
+#petPreview {
+  display: block !important;
+  width: 100% !important;
+  height: 100% !important;
   max-width: 100% !important;
   max-height: 100% !important;
-  object-fit: scale-down !important;
+  object-fit: contain !important;
   object-position: center center !important;
+}
+
+.photo-frame:not(.has-image) img,
+.photo-frame:not(.has-image) #petPreview {
+  display: none !important;
 }
