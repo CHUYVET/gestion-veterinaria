@@ -1,6 +1,6 @@
 const DB_NAME = "gestion-veterinaria-v1";
 const DB_VERSION = 1;
-const APP_VERSION = "v0.4.6";
+const APP_VERSION = "v0.4.7";
 
 const catalogs = {
   cities: "Ciudades",
@@ -23,6 +23,8 @@ const catalogTables = {
 const allowedCountries = ["Mexico", "USA"];
 
 const knownCityLocations = {
+  "agua prieta": { state: "Sonora", country: "Mexico" },
+  altar: { state: "Sonora", country: "Mexico" },
   hermosillo: { state: "Sonora", country: "Mexico" },
   guaymas: { state: "Sonora", country: "Mexico" },
   empalme: { state: "Sonora", country: "Mexico" },
@@ -31,18 +33,110 @@ const knownCityLocations = {
   navojoa: { state: "Sonora", country: "Mexico" },
   nogales: { state: "Sonora", country: "Mexico" },
   caborca: { state: "Sonora", country: "Mexico" },
+  "puerto penasco": { state: "Sonora", country: "Mexico" },
   "san luis rio colorado": { state: "Sonora", country: "Mexico" },
   "san luis": { state: "Sonora", country: "Mexico" },
   mexicali: { state: "Baja California", country: "Mexico" },
   tijuana: { state: "Baja California", country: "Mexico" },
   ensenada: { state: "Baja California", country: "Mexico" },
+  calexico: { state: "California", country: "USA" },
+  "el centro": { state: "California", country: "USA" },
   "san diego": { state: "California", country: "USA" },
   "los angeles": { state: "California", country: "USA" },
+  "san luis az": { state: "Arizona", country: "USA" },
+  somerton: { state: "Arizona", country: "USA" },
   phoenix: { state: "Arizona", country: "USA" },
   tucson: { state: "Arizona", country: "USA" },
   yuma: { state: "Arizona", country: "USA" },
+  "rio rico": { state: "Arizona", country: "USA" },
+  douglas: { state: "Arizona", country: "USA" },
+  "sierra vista": { state: "Arizona", country: "USA" },
   "nogales az": { state: "Arizona", country: "USA" },
   "las vegas": { state: "Nevada", country: "USA" }
+};
+
+const knownStateCountries = {
+  aguascalientes: "Mexico",
+  "baja california": "Mexico",
+  "baja california sur": "Mexico",
+  campeche: "Mexico",
+  chiapas: "Mexico",
+  chihuahua: "Mexico",
+  coahuila: "Mexico",
+  colima: "Mexico",
+  durango: "Mexico",
+  guanajuato: "Mexico",
+  guerrero: "Mexico",
+  hidalgo: "Mexico",
+  jalisco: "Mexico",
+  mexico: "Mexico",
+  michoacan: "Mexico",
+  morelos: "Mexico",
+  nayarit: "Mexico",
+  "nuevo leon": "Mexico",
+  oaxaca: "Mexico",
+  puebla: "Mexico",
+  queretaro: "Mexico",
+  "quintana roo": "Mexico",
+  "san luis potosi": "Mexico",
+  sinaloa: "Mexico",
+  sonora: "Mexico",
+  tabasco: "Mexico",
+  tamaulipas: "Mexico",
+  tlaxcala: "Mexico",
+  veracruz: "Mexico",
+  yucatan: "Mexico",
+  zacatecas: "Mexico",
+  alabama: "USA",
+  alaska: "USA",
+  arizona: "USA",
+  arkansas: "USA",
+  california: "USA",
+  colorado: "USA",
+  connecticut: "USA",
+  delaware: "USA",
+  florida: "USA",
+  georgia: "USA",
+  hawaii: "USA",
+  idaho: "USA",
+  illinois: "USA",
+  indiana: "USA",
+  iowa: "USA",
+  kansas: "USA",
+  kentucky: "USA",
+  louisiana: "USA",
+  maine: "USA",
+  maryland: "USA",
+  massachusetts: "USA",
+  michigan: "USA",
+  minnesota: "USA",
+  mississippi: "USA",
+  missouri: "USA",
+  montana: "USA",
+  nebraska: "USA",
+  nevada: "USA",
+  "new hampshire": "USA",
+  "new jersey": "USA",
+  "new mexico": "USA",
+  "new york": "USA",
+  "north carolina": "USA",
+  "north dakota": "USA",
+  ohio: "USA",
+  oklahoma: "USA",
+  oregon: "USA",
+  pennsylvania: "USA",
+  "rhode island": "USA",
+  "south carolina": "USA",
+  "south dakota": "USA",
+  tennessee: "USA",
+  texas: "USA",
+  utah: "USA",
+  vermont: "USA",
+  virginia: "USA",
+  washington: "USA",
+  "west virginia": "USA",
+  wisconsin: "USA",
+  wyoming: "USA"
 };
 
 let db;
@@ -381,6 +475,8 @@ function wireEvents() {
   $("clientForm").addEventListener("submit", saveClient);
   $("clientCity").addEventListener("change", applyKnownCityLocation);
   $("clientCity").addEventListener("blur", applyKnownCityLocation);
+  $("clientState").addEventListener("change", applyKnownStateCountry);
+  $("clientState").addEventListener("blur", applyKnownStateCountry);
   $("clientCountry").addEventListener("blur", normalizeClientCountry);
   $("petForm").addEventListener("submit", savePet);
   $("petBirthDate").addEventListener("input", updateAge);
@@ -504,7 +600,7 @@ function renderDatalists() {
   };
 
   Object.entries(map).forEach(([type, id]) => {
-    const values = type === "countries" ? allowedCountries : (state.catalogs[type] || []);
+    const values = getCatalogValuesForDatalist(type);
     $(id).innerHTML = values
       .map((value) => `<option value="${escapeHtml(value)}"></option>`)
       .join("");
@@ -514,6 +610,25 @@ function renderDatalists() {
     .filter((item) => item.active)
     .map((item) => `<option value="${escapeHtml(item.name)}"></option>`)
     .join("");
+}
+
+function getCatalogValuesForDatalist(type) {
+  if (type === "countries") return allowedCountries;
+
+  const values = new Set(state.catalogs[type] || []);
+  if (type === "cities") {
+    state.clients.forEach((client) => {
+      if (client.city) values.add(client.city);
+    });
+  }
+  if (type === "states") {
+    Object.keys(knownStateCountries).forEach((stateName) => values.add(toTitleCase(stateName)));
+    state.clients.forEach((client) => {
+      if (client.state) values.add(client.state);
+    });
+  }
+
+  return Array.from(values).sort((a, b) => a.localeCompare(b, "es"));
 }
 
 function renderClientList() {
@@ -589,14 +704,32 @@ function normalizeText(value) {
 
 function applyKnownCityLocation() {
   const key = normalizeText($("clientCity").value);
-  const location = knownCityLocations[key];
+  const location = getCityLocation(key);
   if (!location) return;
 
-  if (!$("clientState").value.trim()) {
-    $("clientState").value = location.state;
+  $("clientState").value = location.state;
+  $("clientCountry").value = location.country;
+}
+
+function getCityLocation(cityKey) {
+  if (!cityKey) return null;
+  const client = [...state.clients].reverse().find((item) => {
+    return normalizeText(item.city) === cityKey && item.state && item.country;
+  });
+  if (client) {
+    return {
+      state: client.state,
+      country: normalizeCountryName(client.country)
+    };
   }
-  if (!$("clientCountry").value.trim()) {
-    $("clientCountry").value = location.country;
+  return knownCityLocations[cityKey] || null;
+}
+
+function applyKnownStateCountry() {
+  const key = normalizeText($("clientState").value);
+  const country = knownStateCountries[key];
+  if (country) {
+    $("clientCountry").value = country;
   }
 }
 
@@ -610,6 +743,13 @@ function normalizeCountryName(value) {
   if (["mexico", "méxico", "mx"].includes(key)) return "Mexico";
   if (["usa", "us", "u.s.", "u.s.a.", "estados unidos", "united states"].includes(key)) return "USA";
   return value.trim();
+}
+
+function toTitleCase(value) {
+  return String(value || "")
+    .split(" ")
+    .map((word) => word ? word[0].toUpperCase() + word.slice(1) : "")
+    .join(" ");
 }
 
 function setClientSaveMessage(message, type = "") {
@@ -766,6 +906,9 @@ function renderCatalogs() {
 async function saveClient(event) {
   event.preventDefault();
   $("saveClientButton").disabled = true;
+  applyKnownCityLocation();
+  applyKnownStateCountry();
+  normalizeClientCountry();
   const client = {
     id: $("clientId").value || crypto.randomUUID(),
     admissionDate: $("clientAdmissionDate").value,
@@ -800,6 +943,7 @@ async function saveClient(event) {
     if (state.storageMode === "supabase") {
       setClientSaveMessage("Guardado en pantalla. Confirmando Supabase...");
       flashStatus("Confirmando Supabase");
+      showLongSyncHint(client.id);
       syncClientInBackground(client);
     } else {
       setClientSaveMessage("Cliente guardado correctamente.", "success");
@@ -838,18 +982,14 @@ async function syncClientInBackground(client) {
   try {
     await saveRemoteClient(client);
     await verifyRemoteClient(client.id);
-    await put("clients", { ...client, syncPending: false });
-
-    if (state.storageMode === "supabase") {
-      state.selectedClientId = client.id;
-      await loadState();
-      renderAll();
-    }
 
     if (state.selectedClientId === client.id) {
-      setClientSaveMessage("Cliente sincronizado en Supabase.", "success");
+      setTemporaryClientSaveMessage("Cliente sincronizado en Supabase.", "success", client.id);
     }
     flashStatus("Sincronizado en Supabase");
+
+    put("clients", { ...client, syncPending: false }).catch(console.error);
+    refreshRemoteStateAfterClientSync(client.id);
   } catch (error) {
     console.error(error);
     await put("clients", { ...client, syncPending: true });
@@ -858,6 +998,41 @@ async function syncClientInBackground(client) {
     }
     flashStatus("Pendiente de sincronizar");
   }
+}
+
+async function refreshRemoteStateAfterClientSync(clientId) {
+  try {
+    if (state.storageMode === "supabase") {
+      const currentMessage = $("clientSaveMessage").textContent;
+      state.selectedClientId = clientId;
+      await loadState();
+      renderAll();
+      if (state.selectedClientId === clientId && currentMessage) {
+        setClientSaveMessage(currentMessage, currentMessage.includes("sincronizado") ? "success" : "");
+      }
+    }
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+function showLongSyncHint(clientId) {
+  window.setTimeout(() => {
+    if (state.selectedClientId !== clientId) return;
+    if ($("clientSaveMessage").textContent === "Guardado en pantalla. Confirmando Supabase...") {
+      setClientSaveMessage("Guardado localmente. Supabase sigue confirmando...");
+    }
+  }, 5000);
+}
+
+function setTemporaryClientSaveMessage(message, type, clientId) {
+  setClientSaveMessage(message, type);
+  window.setTimeout(() => {
+    if (state.selectedClientId !== clientId) return;
+    if ($("clientSaveMessage").textContent === message) {
+      setClientSaveMessage("");
+    }
+  }, 4500);
 }
 
 async function savePet(event) {
