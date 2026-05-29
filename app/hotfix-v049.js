@@ -38,12 +38,12 @@
   function hideCatalogs() {
     const catalogTab = document.querySelector('[data-tab="catalogos"]');
     const catalogPanel = document.getElementById("tab-catalogos");
-    catalogTab?.setAttribute("hidden", "");
-    catalogPanel?.setAttribute("hidden", "");
+    if (catalogTab && !catalogTab.hidden) catalogTab.hidden = true;
+    if (catalogPanel && !catalogPanel.hidden) catalogPanel.hidden = true;
     catalogTab?.classList.remove("is-active");
     catalogPanel?.classList.remove("is-active");
 
-    const activeTab = document.querySelector(".tab.is-active");
+    const activeTab = document.querySelector(".tab.is-active:not([hidden])");
     if (!activeTab) {
       document.querySelector('[data-tab="cliente"]')?.classList.add("is-active");
       document.getElementById("tab-cliente")?.classList.add("is-active");
@@ -57,8 +57,8 @@
     if (!city || !state || !country) return;
     const location = findLocation(city.value);
     if (location) {
-      state.value = location.state;
-      country.value = location.country;
+      if (state.value !== location.state) state.value = location.state;
+      if (country.value !== location.country) country.value = location.country;
       state.dispatchEvent(new Event("input", { bubbles: true }));
       country.dispatchEvent(new Event("input", { bubbles: true }));
     }
@@ -75,11 +75,6 @@
     const version = document.getElementById("appVersion");
     if (version) {
       new MutationObserver(setVersion).observe(version, { childList: true, characterData: true, subtree: true });
-    }
-
-    const tabs = document.querySelector(".tabs");
-    if (tabs) {
-      new MutationObserver(hideCatalogs).observe(tabs, { childList: true, subtree: true, attributes: true });
     }
 
     const city = document.getElementById("clientCity");
