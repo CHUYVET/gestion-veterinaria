@@ -1,6 +1,6 @@
 const DB_NAME = "gestion-veterinaria-v1";
 const DB_VERSION = 1;
-const APP_VERSION = "v0.4.5";
+const APP_VERSION = "v0.4.6";
 
 const catalogs = {
   cities: "Ciudades",
@@ -379,7 +379,6 @@ function wireEvents() {
   $("signUpButton").addEventListener("click", signUp);
   $("signOutButton").addEventListener("click", signOut);
   $("clientForm").addEventListener("submit", saveClient);
-  $("saveClientButton").addEventListener("click", saveClient);
   $("clientCity").addEventListener("change", applyKnownCityLocation);
   $("clientCity").addEventListener("blur", applyKnownCityLocation);
   $("clientCountry").addEventListener("blur", normalizeClientCountry);
@@ -766,7 +765,6 @@ function renderCatalogs() {
 
 async function saveClient(event) {
   event.preventDefault();
-  setClientSaveMessage("Guardando cliente...");
   $("saveClientButton").disabled = true;
   const client = {
     id: $("clientId").value || crypto.randomUUID(),
@@ -793,24 +791,20 @@ async function saveClient(event) {
   }
 
   try {
-    if (state.storageMode === "supabase") {
-      setClientSaveMessage("Guardando cliente en Supabase...");
-      await saveRemoteClient(client);
-    } else {
-      await Promise.all([
-        put("clients", client),
-        remember("cities", client.city),
-        remember("states", client.state),
-        remember("countries", client.country)
-      ]);
-    }
-
+    await saveClientLocally(client);
     state.selectedClientId = client.id;
-    setClientSaveMessage("Cliente guardado. Actualizando lista...");
-    await loadState();
+    upsertClientInMemory(client);
+    keepValidSelection();
     renderAll();
-    setClientSaveMessage("Cliente guardado correctamente.", "success");
-    flashStatus("Cliente guardado");
+
+    if (state.storageMode === "supabase") {
+      setClientSaveMessage("Guardado en pantalla. Confirmando Supabase...");
+      flashStatus("Confirmando Supabase");
+      syncClientInBackground(client);
+    } else {
+      setClientSaveMessage("Cliente guardado correctamente.", "success");
+      flashStatus("Cliente guardado");
+    }
   } catch (error) {
     console.error(error);
     const message = error.message || "No se pudo guardar el cliente";
@@ -818,6 +812,51 @@ async function saveClient(event) {
     flashStatus(message);
   } finally {
     $("saveClientButton").disabled = false;
+  }
+}
+
+async function saveClientLocally(client) {
+  await Promise.all([
+    put("clients", client),
+    remember("cities", client.city),
+    remember("states", client.state),
+    remember("countries", client.country)
+  ]);
+}
+
+function upsertClientInMemory(client) {
+  const existingIndex = state.clients.findIndex((item) => item.id === client.id);
+  if (existingIndex >= 0) {
+    state.clients[existingIndex] = { ...state.clients[existingIndex], ...client };
+  } else {
+    state.clients.push(client);
+  }
+  state.clients.sort(sortByName("fullName"));
+}
+
+async function syncClientInBackground(client) {
+  try {
+    await saveRemoteClient(client);
+    await verifyRemoteClient(client.id);
+    await put("clients", { ...client, syncPending: false });
+
+    if (state.storageMode === "supabase") {
+      state.selectedClientId = client.id;
+      await loadState();
+      renderAll();
+    }
+
+    if (state.selectedClientId === client.id) {
+      setClientSaveMessage("Cliente sincronizado en Supabase.", "success");
+    }
+    flashStatus("Sincronizado en Supabase");
+  } catch (error) {
+    console.error(error);
+    await put("clients", { ...client, syncPending: true });
+    if (state.selectedClientId === client.id) {
+      setClientSaveMessage("Guardado localmente, pendiente de sincronizar.", "error");
+    }
+    flashStatus("Pendiente de sincronizar");
   }
 }
 
@@ -972,6 +1011,31 @@ async function saveRemoteClient(client) {
 
   if (!response.ok) {
     throw new Error(await readSupabaseError(response));
+  }
+}
+
+async function verifyRemoteClient(clientId) {
+  const accessToken = await getSupabaseAccessToken();
+  const response = await fetchWithTimeout(
+    `${window.SUPABASE_CONFIG.url}/rest/v1/clients?id=eq.${encodeURIComponent(clientId)}&select=id`,
+    {
+      method: "GET",
+      headers: {
+        "apikey": window.SUPABASE_CONFIG.publishableKey,
+        "Authorization": `Bearer ${accessToken}`
+      }
+    },
+    20000,
+    "Supabase guardo lento y no se pudo confirmar todavia."
+  );
+
+  if (!response.ok) {
+    throw new Error(await readSupabaseError(response));
+  }
+
+  const rows = await response.json();
+  if (!Array.isArray(rows) || !rows.some((row) => row.id === clientId)) {
+    throw new Error("Supabase no confirmo el cliente guardado.");
   }
 }
 
