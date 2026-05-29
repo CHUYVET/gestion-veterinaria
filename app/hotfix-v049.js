@@ -1,5 +1,5 @@
 (() => {
-  const HOTFIX_VERSION = "v0.4.9";
+  const HOTFIX_VERSION = "v0.5.0";
   const cityRules = {
     "san luis": { state: "Arizona", country: "USA" },
     "san luis az": { state: "Arizona", country: "USA" },
@@ -35,6 +35,21 @@
     if (version && version.textContent !== HOTFIX_VERSION) version.textContent = HOTFIX_VERSION;
   }
 
+  function hideCatalogs() {
+    const catalogTab = document.querySelector('[data-tab="catalogos"]');
+    const catalogPanel = document.getElementById("tab-catalogos");
+    catalogTab?.setAttribute("hidden", "");
+    catalogPanel?.setAttribute("hidden", "");
+    catalogTab?.classList.remove("is-active");
+    catalogPanel?.classList.remove("is-active");
+
+    const activeTab = document.querySelector(".tab.is-active");
+    if (!activeTab) {
+      document.querySelector('[data-tab="cliente"]')?.classList.add("is-active");
+      document.getElementById("tab-cliente")?.classList.add("is-active");
+    }
+  }
+
   function setLocation() {
     const city = document.getElementById("clientCity");
     const state = document.getElementById("clientState");
@@ -51,11 +66,20 @@
 
   function install() {
     setVersion();
-    [100, 500, 1500, 3000, 6000].forEach((delay) => setTimeout(setVersion, delay));
+    hideCatalogs();
+    [100, 500, 1500, 3000, 6000].forEach((delay) => {
+      setTimeout(setVersion, delay);
+      setTimeout(hideCatalogs, delay);
+    });
 
     const version = document.getElementById("appVersion");
     if (version) {
       new MutationObserver(setVersion).observe(version, { childList: true, characterData: true, subtree: true });
+    }
+
+    const tabs = document.querySelector(".tabs");
+    if (tabs) {
+      new MutationObserver(hideCatalogs).observe(tabs, { childList: true, subtree: true, attributes: true });
     }
 
     const city = document.getElementById("clientCity");
