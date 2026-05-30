@@ -8,6 +8,7 @@
   <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="hotfix-v049.css">
+  <link rel="stylesheet" href="hotfix-visits-v056.css">
 </head>
 <body>
   <header class="topbar">
@@ -61,7 +62,6 @@
         <button class="tab is-active" data-tab="cliente" type="button">Cliente</button>
         <button class="tab" data-tab="mascotas" type="button">Mascotas</button>
         <button class="tab" data-tab="visitas" type="button">Visitas</button>
-        <button class="tab" data-tab="catalogos" type="button">Catalogos</button>
       </nav>
 
       <section class="panel is-active" id="tab-cliente">
@@ -233,10 +233,6 @@
           <div class="timeline" id="receiptList"></div>
         </section>
       </section>
-
-      <section class="panel" id="tab-catalogos">
-        <div class="catalog-grid" id="catalogPanel"></div>
-      </section>
     </section>
   </main>
 
@@ -252,5 +248,6 @@
   <script src="supabase-config.js"></script>
   <script src="app.js"></script>
   <script src="hotfix-v049.js"></script>
+  <script src="hotfix-visits-v056.js"></script>
 </body>
 </html>
