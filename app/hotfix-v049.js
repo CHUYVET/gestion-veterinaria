@@ -1,15 +1,15 @@
 (() => {
-  const HOTFIX_VERSION = "v0.5.0";
+  const HOTFIX_VERSION = "v0.5.1";
   const cityRules = {
-    "san luis": { state: "Arizona", country: "USA" },
-    "san luis az": { state: "Arizona", country: "USA" },
-    "san luis arizona": { state: "Arizona", country: "USA" },
-    "san luis, arizona": { state: "Arizona", country: "USA" },
-    "san luis arizona usa": { state: "Arizona", country: "USA" },
-    "san luis rio colorado": { state: "Sonora", country: "Mexico" },
-    "san luis rio colorado sonora": { state: "Sonora", country: "Mexico" },
-    "san luis río colorado": { state: "Sonora", country: "Mexico" },
-    "san luis río colorado sonora": { state: "Sonora", country: "Mexico" }
+    "san luis": { state: "Arizona", country: "USA", saveCity: "San Luis Arizona" },
+    "san luis az": { state: "Arizona", country: "USA", saveCity: "San Luis Arizona" },
+    "san luis arizona": { state: "Arizona", country: "USA", saveCity: "San Luis Arizona" },
+    "san luis, arizona": { state: "Arizona", country: "USA", saveCity: "San Luis Arizona" },
+    "san luis arizona usa": { state: "Arizona", country: "USA", saveCity: "San Luis Arizona" },
+    "san luis rio colorado": { state: "Sonora", country: "Mexico", saveCity: "San Luis Río Colorado" },
+    "san luis rio colorado sonora": { state: "Sonora", country: "Mexico", saveCity: "San Luis Río Colorado" },
+    "san luis río colorado": { state: "Sonora", country: "Mexico", saveCity: "San Luis Río Colorado" },
+    "san luis río colorado sonora": { state: "Sonora", country: "Mexico", saveCity: "San Luis Río Colorado" }
   };
 
   function normalize(value) {
@@ -20,6 +20,13 @@
       .trim()
       .replace(/[,.]/g, " ")
       .replace(/\s+/g, " ");
+  }
+
+  function normalizeCountry(value) {
+    const key = normalize(value);
+    if (["usa", "us", "u s", "u s a", "estados unidos", "united states"].includes(key)) return "USA";
+    if (["mexico", "mx"].includes(key)) return "Mexico";
+    return String(value || "").trim();
   }
 
   function findLocation(value) {
@@ -50,17 +57,28 @@
     }
   }
 
-  function setLocation() {
+  function setLocation(options = {}) {
     const city = document.getElementById("clientCity");
     const state = document.getElementById("clientState");
     const country = document.getElementById("clientCountry");
     if (!city || !state || !country) return;
-    const location = findLocation(city.value);
+
+    const cityKey = normalize(city.value);
+    const stateKey = normalize(state.value);
+    const countryValue = normalizeCountry(country.value);
+    let location = findLocation(city.value);
+
+    if (cityKey === "san luis" && (stateKey === "arizona" || countryValue === "USA")) {
+      location = cityRules["san luis"];
+    }
+
     if (location) {
       if (state.value !== location.state) state.value = location.state;
       if (country.value !== location.country) country.value = location.country;
+      if (options.beforeSave && location.saveCity && normalize(city.value) === "san luis") city.value = location.saveCity;
       state.dispatchEvent(new Event("input", { bubbles: true }));
       country.dispatchEvent(new Event("input", { bubbles: true }));
+      city.dispatchEvent(new Event("input", { bubbles: true }));
     }
   }
 
@@ -80,11 +98,11 @@
     const city = document.getElementById("clientCity");
     const form = document.getElementById("clientForm");
     const save = document.getElementById("saveClientButton");
-    city?.addEventListener("input", setLocation);
-    city?.addEventListener("change", setLocation);
-    city?.addEventListener("blur", setLocation);
-    form?.addEventListener("submit", setLocation, true);
-    save?.addEventListener("click", setLocation, true);
+    city?.addEventListener("input", () => setLocation());
+    city?.addEventListener("change", () => setLocation());
+    city?.addEventListener("blur", () => setLocation());
+    form?.addEventListener("submit", () => setLocation({ beforeSave: true }), true);
+    save?.addEventListener("click", () => setLocation({ beforeSave: true }), true);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install);
