@@ -4,6 +4,8 @@
 }
 
 .photo-frame {
+  aspect-ratio: 3 / 4 !important;
+  min-height: 360px !important;
   background: #ffffff !important;
   padding: 8px !important;
   overflow: hidden !important;
