@@ -1,15 +1,15 @@
 (() => {
-  const HOTFIX_VERSION = "v0.5.1";
+  const HOTFIX_VERSION = "v0.5.2";
   const cityRules = {
-    "san luis": { state: "Arizona", country: "USA", saveCity: "San Luis Arizona" },
-    "san luis az": { state: "Arizona", country: "USA", saveCity: "San Luis Arizona" },
-    "san luis arizona": { state: "Arizona", country: "USA", saveCity: "San Luis Arizona" },
-    "san luis, arizona": { state: "Arizona", country: "USA", saveCity: "San Luis Arizona" },
-    "san luis arizona usa": { state: "Arizona", country: "USA", saveCity: "San Luis Arizona" },
-    "san luis rio colorado": { state: "Sonora", country: "Mexico", saveCity: "San Luis Río Colorado" },
-    "san luis rio colorado sonora": { state: "Sonora", country: "Mexico", saveCity: "San Luis Río Colorado" },
-    "san luis río colorado": { state: "Sonora", country: "Mexico", saveCity: "San Luis Río Colorado" },
-    "san luis río colorado sonora": { state: "Sonora", country: "Mexico", saveCity: "San Luis Río Colorado" }
+    "san luis": { state: "Arizona", country: "USA", displayCity: "San Luis" },
+    "san luis az": { state: "Arizona", country: "USA", displayCity: "San Luis" },
+    "san luis arizona": { state: "Arizona", country: "USA", displayCity: "San Luis" },
+    "san luis, arizona": { state: "Arizona", country: "USA", displayCity: "San Luis" },
+    "san luis arizona usa": { state: "Arizona", country: "USA", displayCity: "San Luis" },
+    "san luis rio colorado": { state: "Sonora", country: "Mexico", displayCity: "San Luis Río Colorado" },
+    "san luis rio colorado sonora": { state: "Sonora", country: "Mexico", displayCity: "San Luis Río Colorado" },
+    "san luis río colorado": { state: "Sonora", country: "Mexico", displayCity: "San Luis Río Colorado" },
+    "san luis río colorado sonora": { state: "Sonora", country: "Mexico", displayCity: "San Luis Río Colorado" }
   };
 
   function normalize(value) {
@@ -72,10 +72,16 @@
       location = cityRules["san luis"];
     }
 
+    if (cityKey === "san luis arizona") {
+      location = cityRules["san luis"];
+    }
+
     if (location) {
       if (state.value !== location.state) state.value = location.state;
       if (country.value !== location.country) country.value = location.country;
-      if (options.beforeSave && location.saveCity && normalize(city.value) === "san luis") city.value = location.saveCity;
+      if (location.displayCity && ["san luis arizona", "san luis az", "san luis arizona usa"].includes(cityKey)) {
+        city.value = location.displayCity;
+      }
       state.dispatchEvent(new Event("input", { bubbles: true }));
       country.dispatchEvent(new Event("input", { bubbles: true }));
       city.dispatchEvent(new Event("input", { bubbles: true }));
