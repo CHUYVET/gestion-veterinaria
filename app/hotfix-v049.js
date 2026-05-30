@@ -1,5 +1,5 @@
 (() => {
-  const HOTFIX_VERSION = "v0.5.4";
+  const HOTFIX_VERSION = "v0.5.5";
   const cityRules = {
     "san luis": { state: "Arizona", country: "USA", displayCity: "San Luis" },
     "san luis az": { state: "Arizona", country: "USA", displayCity: "San Luis" },
@@ -12,22 +12,14 @@
     "san luis río colorado sonora": { state: "Sonora", country: "Mexico", displayCity: "San Luis Río Colorado" }
   };
 
-  function normalize(value) {
-    return String(value || "")
-      .normalize("NFD")
-      .replace(/[\u0300-\u036f]/g, "")
-      .toLowerCase()
-      .trim()
-      .replace(/[,.]/g, " ")
-      .replace(/\s+/g, " ");
-  }
-
-  function normalizeCountry(value) {
+  const normalize = (value) => String(value || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim().replace(/[,.]/g, " ").replace(/\s+/g, " ");
+  const normalizeCountry = (value) => {
     const key = normalize(value);
     if (["usa", "us", "u s", "u s a", "estados unidos", "united states"].includes(key)) return "USA";
     if (["mexico", "mx"].includes(key)) return "Mexico";
     return String(value || "").trim();
-  }
+  };
+  const delayReject = (ms, message) => new Promise((_, reject) => setTimeout(() => reject(new Error(message)), ms));
 
   function findLocation(value) {
     const key = normalize(value);
@@ -46,18 +38,11 @@
           const localRule = cityRules[normalize(cityKey)] || (typeof knownCityLocations !== "undefined" ? knownCityLocations[cityKey] : null);
           if (localRule) return localRule;
           const client = [...state.clients].reverse().find((item) => normalize(item.city) === cityKey && item.state && item.country);
-          if (client) {
-            return {
-              state: client.state,
-              country: typeof normalizeCountryName === "function" ? normalizeCountryName(client.country) : normalizeCountry(client.country)
-            };
-          }
+          if (client) return { state: client.state, country: typeof normalizeCountryName === "function" ? normalizeCountryName(client.country) : normalizeCountry(client.country) };
           return null;
         };
       }
-      if (typeof applyKnownCityLocation === "function") {
-        applyKnownCityLocation = function patchedApplyKnownCityLocation() { setLocation(); };
-      }
+      if (typeof applyKnownCityLocation === "function") applyKnownCityLocation = function patchedApplyKnownCityLocation() { setLocation(); };
     } catch (error) {
       console.warn("No se pudo aplicar ajuste de ciudad", error);
     }
@@ -93,52 +78,72 @@
     let location = findLocation(city.value);
     if (cityKey === "san luis" && (stateKey === "arizona" || countryValue === "USA" || !stateKey)) location = cityRules["san luis"];
     if (cityKey === "san luis arizona") location = cityRules["san luis"];
-    if (location) {
-      if (state.value !== location.state) state.value = location.state;
-      if (country.value !== location.country) country.value = location.country;
-      if (location.displayCity && ["san luis arizona", "san luis az", "san luis arizona usa"].includes(cityKey)) city.value = location.displayCity;
-      state.dispatchEvent(new Event("input", { bubbles: true }));
-      country.dispatchEvent(new Event("input", { bubbles: true }));
-      city.dispatchEvent(new Event("input", { bubbles: true }));
-    }
+    if (!location) return;
+    if (state.value !== location.state) state.value = location.state;
+    if (country.value !== location.country) country.value = location.country;
+    if (location.displayCity && ["san luis arizona", "san luis az", "san luis arizona usa"].includes(cityKey)) city.value = location.displayCity;
+    state.dispatchEvent(new Event("input", { bubbles: true }));
+    country.dispatchEvent(new Event("input", { bubbles: true }));
+    city.dispatchEvent(new Event("input", { bubbles: true }));
   }
 
   async function fallbackSignIn() {
-    const email = document.getElementById("authEmail")?.value.trim();
-    const password = document.getElementById("authPassword")?.value || "";
+    const emailEl = document.getElementById("authEmail");
+    const passwordEl = document.getElementById("authPassword");
     const message = document.getElementById("authMessage");
+    const button = document.getElementById("signInButton");
+    const email = emailEl?.value.trim() || "";
+    const password = passwordEl?.value || "";
     if (!email || !password) {
       if (message) message.textContent = "Escribe correo y contrasena.";
       return;
     }
-    if (message) message.textContent = "Entrando...";
+    if (message) message.textContent = "Validando acceso...";
+    if (button) {
+      button.disabled = true;
+      button.textContent = "Entrando...";
+    }
     try {
       if (!window.supabase || !window.SUPABASE_CONFIG?.url || !window.SUPABASE_CONFIG?.publishableKey) {
-        throw new Error("Supabase no esta disponible. Revisa internet y vuelve a intentar.");
+        throw new Error("Supabase no esta disponible. Presiona Actualizar e intenta otra vez.");
       }
-      const client = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.publishableKey);
-      const { error } = await client.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      const client = window.__clinicLoginClient || window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.publishableKey);
+      window.__clinicLoginClient = client;
+      const result = await Promise.race([
+        client.auth.signInWithPassword({ email, password }),
+        delayReject(15000, "Supabase no respondio. Revisa internet y vuelve a intentar.")
+      ]);
+      if (result.error) throw result.error;
       if (message) message.textContent = "Sesion iniciada. Cargando datos...";
-      setTimeout(() => window.location.reload(), 600);
+      setTimeout(() => window.location.reload(), 500);
     } catch (error) {
       if (message) message.textContent = error.message || "No se pudo iniciar sesion.";
+      if (button) {
+        button.disabled = false;
+        button.textContent = "Entrar";
+      }
     }
   }
 
   function protectLoginForm() {
     const form = document.getElementById("authForm");
-    if (!form || form.dataset.hotfixLogin === "1") return;
-    form.dataset.hotfixLogin = "1";
-    form.addEventListener("submit", (event) => {
-      event.preventDefault();
-      event.stopPropagation();
-      if (typeof signIn === "function" && typeof supabaseClient !== "undefined" && supabaseClient) {
-        signIn(event);
-      } else {
+    const button = document.getElementById("signInButton");
+    if (form && form.dataset.hotfixLogin !== "1") {
+      form.dataset.hotfixLogin = "1";
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
         fallbackSignIn();
-      }
-    }, true);
+      }, true);
+    }
+    if (button && button.dataset.hotfixLogin !== "1") {
+      button.dataset.hotfixLogin = "1";
+      button.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        fallbackSignIn();
+      }, true);
+    }
   }
 
   function install() {
