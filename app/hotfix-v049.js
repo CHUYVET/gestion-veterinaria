@@ -1,5 +1,5 @@
 (() => {
-  const HOTFIX_VERSION = "v0.5.2";
+  const HOTFIX_VERSION = "v0.5.3";
   const cityRules = {
     "san luis": { state: "Arizona", country: "USA", displayCity: "San Luis" },
     "san luis az": { state: "Arizona", country: "USA", displayCity: "San Luis" },
@@ -37,6 +37,39 @@
     return location || null;
   }
 
+  function patchMainLocationFunctions() {
+    try {
+      if (typeof knownCityLocations !== "undefined") {
+        Object.assign(knownCityLocations, cityRules);
+      }
+      if (typeof getCityLocation === "function") {
+        getCityLocation = function patchedGetCityLocation(cityKey) {
+          if (!cityKey) return null;
+          const localRule = cityRules[normalize(cityKey)] || (typeof knownCityLocations !== "undefined" ? knownCityLocations[cityKey] : null);
+          if (localRule) return localRule;
+
+          const client = [...state.clients].reverse().find((item) => {
+            return normalize(item.city) === cityKey && item.state && item.country;
+          });
+          if (client) {
+            return {
+              state: client.state,
+              country: typeof normalizeCountryName === "function" ? normalizeCountryName(client.country) : normalizeCountry(client.country)
+            };
+          }
+          return null;
+        };
+      }
+      if (typeof applyKnownCityLocation === "function") {
+        applyKnownCityLocation = function patchedApplyKnownCityLocation() {
+          setLocation();
+        };
+      }
+    } catch (error) {
+      console.warn("No se pudo aplicar ajuste de ciudad", error);
+    }
+  }
+
   function setVersion() {
     const version = document.getElementById("appVersion");
     if (version && version.textContent !== HOTFIX_VERSION) version.textContent = HOTFIX_VERSION;
@@ -57,7 +90,7 @@
     }
   }
 
-  function setLocation(options = {}) {
+  function setLocation() {
     const city = document.getElementById("clientCity");
     const state = document.getElementById("clientState");
     const country = document.getElementById("clientCountry");
@@ -68,7 +101,7 @@
     const countryValue = normalizeCountry(country.value);
     let location = findLocation(city.value);
 
-    if (cityKey === "san luis" && (stateKey === "arizona" || countryValue === "USA")) {
+    if (cityKey === "san luis" && (stateKey === "arizona" || countryValue === "USA" || !stateKey)) {
       location = cityRules["san luis"];
     }
 
@@ -89,9 +122,11 @@
   }
 
   function install() {
+    patchMainLocationFunctions();
     setVersion();
     hideCatalogs();
     [100, 500, 1500, 3000, 6000].forEach((delay) => {
+      setTimeout(patchMainLocationFunctions, delay);
       setTimeout(setVersion, delay);
       setTimeout(hideCatalogs, delay);
     });
@@ -107,8 +142,14 @@
     city?.addEventListener("input", () => setLocation());
     city?.addEventListener("change", () => setLocation());
     city?.addEventListener("blur", () => setLocation());
-    form?.addEventListener("submit", () => setLocation({ beforeSave: true }), true);
-    save?.addEventListener("click", () => setLocation({ beforeSave: true }), true);
+    form?.addEventListener("submit", () => {
+      patchMainLocationFunctions();
+      setLocation();
+    }, true);
+    save?.addEventListener("click", () => {
+      patchMainLocationFunctions();
+      setLocation();
+    }, true);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install);
