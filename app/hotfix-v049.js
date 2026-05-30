@@ -1,5 +1,5 @@
 (() => {
-  const HOTFIX_VERSION = "v0.5.3";
+  const HOTFIX_VERSION = "v0.5.4";
   const cityRules = {
     "san luis": { state: "Arizona", country: "USA", displayCity: "San Luis" },
     "san luis az": { state: "Arizona", country: "USA", displayCity: "San Luis" },
@@ -39,18 +39,13 @@
 
   function patchMainLocationFunctions() {
     try {
-      if (typeof knownCityLocations !== "undefined") {
-        Object.assign(knownCityLocations, cityRules);
-      }
+      if (typeof knownCityLocations !== "undefined") Object.assign(knownCityLocations, cityRules);
       if (typeof getCityLocation === "function") {
         getCityLocation = function patchedGetCityLocation(cityKey) {
           if (!cityKey) return null;
           const localRule = cityRules[normalize(cityKey)] || (typeof knownCityLocations !== "undefined" ? knownCityLocations[cityKey] : null);
           if (localRule) return localRule;
-
-          const client = [...state.clients].reverse().find((item) => {
-            return normalize(item.city) === cityKey && item.state && item.country;
-          });
+          const client = [...state.clients].reverse().find((item) => normalize(item.city) === cityKey && item.state && item.country);
           if (client) {
             return {
               state: client.state,
@@ -61,9 +56,7 @@
         };
       }
       if (typeof applyKnownCityLocation === "function") {
-        applyKnownCityLocation = function patchedApplyKnownCityLocation() {
-          setLocation();
-        };
+        applyKnownCityLocation = function patchedApplyKnownCityLocation() { setLocation(); };
       }
     } catch (error) {
       console.warn("No se pudo aplicar ajuste de ciudad", error);
@@ -82,7 +75,6 @@
     if (catalogPanel && !catalogPanel.hidden) catalogPanel.hidden = true;
     catalogTab?.classList.remove("is-active");
     catalogPanel?.classList.remove("is-active");
-
     const activeTab = document.querySelector(".tab.is-active:not([hidden])");
     if (!activeTab) {
       document.querySelector('[data-tab="cliente"]')?.classList.add("is-active");
@@ -95,61 +87,81 @@
     const state = document.getElementById("clientState");
     const country = document.getElementById("clientCountry");
     if (!city || !state || !country) return;
-
     const cityKey = normalize(city.value);
     const stateKey = normalize(state.value);
     const countryValue = normalizeCountry(country.value);
     let location = findLocation(city.value);
-
-    if (cityKey === "san luis" && (stateKey === "arizona" || countryValue === "USA" || !stateKey)) {
-      location = cityRules["san luis"];
-    }
-
-    if (cityKey === "san luis arizona") {
-      location = cityRules["san luis"];
-    }
-
+    if (cityKey === "san luis" && (stateKey === "arizona" || countryValue === "USA" || !stateKey)) location = cityRules["san luis"];
+    if (cityKey === "san luis arizona") location = cityRules["san luis"];
     if (location) {
       if (state.value !== location.state) state.value = location.state;
       if (country.value !== location.country) country.value = location.country;
-      if (location.displayCity && ["san luis arizona", "san luis az", "san luis arizona usa"].includes(cityKey)) {
-        city.value = location.displayCity;
-      }
+      if (location.displayCity && ["san luis arizona", "san luis az", "san luis arizona usa"].includes(cityKey)) city.value = location.displayCity;
       state.dispatchEvent(new Event("input", { bubbles: true }));
       country.dispatchEvent(new Event("input", { bubbles: true }));
       city.dispatchEvent(new Event("input", { bubbles: true }));
     }
   }
 
+  async function fallbackSignIn() {
+    const email = document.getElementById("authEmail")?.value.trim();
+    const password = document.getElementById("authPassword")?.value || "";
+    const message = document.getElementById("authMessage");
+    if (!email || !password) {
+      if (message) message.textContent = "Escribe correo y contrasena.";
+      return;
+    }
+    if (message) message.textContent = "Entrando...";
+    try {
+      if (!window.supabase || !window.SUPABASE_CONFIG?.url || !window.SUPABASE_CONFIG?.publishableKey) {
+        throw new Error("Supabase no esta disponible. Revisa internet y vuelve a intentar.");
+      }
+      const client = window.supabase.createClient(window.SUPABASE_CONFIG.url, window.SUPABASE_CONFIG.publishableKey);
+      const { error } = await client.auth.signInWithPassword({ email, password });
+      if (error) throw error;
+      if (message) message.textContent = "Sesion iniciada. Cargando datos...";
+      setTimeout(() => window.location.reload(), 600);
+    } catch (error) {
+      if (message) message.textContent = error.message || "No se pudo iniciar sesion.";
+    }
+  }
+
+  function protectLoginForm() {
+    const form = document.getElementById("authForm");
+    if (!form || form.dataset.hotfixLogin === "1") return;
+    form.dataset.hotfixLogin = "1";
+    form.addEventListener("submit", (event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (typeof signIn === "function" && typeof supabaseClient !== "undefined" && supabaseClient) {
+        signIn(event);
+      } else {
+        fallbackSignIn();
+      }
+    }, true);
+  }
+
   function install() {
+    protectLoginForm();
     patchMainLocationFunctions();
     setVersion();
     hideCatalogs();
     [100, 500, 1500, 3000, 6000].forEach((delay) => {
+      setTimeout(protectLoginForm, delay);
       setTimeout(patchMainLocationFunctions, delay);
       setTimeout(setVersion, delay);
       setTimeout(hideCatalogs, delay);
     });
-
     const version = document.getElementById("appVersion");
-    if (version) {
-      new MutationObserver(setVersion).observe(version, { childList: true, characterData: true, subtree: true });
-    }
-
+    if (version) new MutationObserver(setVersion).observe(version, { childList: true, characterData: true, subtree: true });
     const city = document.getElementById("clientCity");
     const form = document.getElementById("clientForm");
     const save = document.getElementById("saveClientButton");
     city?.addEventListener("input", () => setLocation());
     city?.addEventListener("change", () => setLocation());
     city?.addEventListener("blur", () => setLocation());
-    form?.addEventListener("submit", () => {
-      patchMainLocationFunctions();
-      setLocation();
-    }, true);
-    save?.addEventListener("click", () => {
-      patchMainLocationFunctions();
-      setLocation();
-    }, true);
+    form?.addEventListener("submit", () => { patchMainLocationFunctions(); setLocation(); }, true);
+    save?.addEventListener("click", () => { patchMainLocationFunctions(); setLocation(); }, true);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", install);
