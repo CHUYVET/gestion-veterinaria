@@ -1,4 +1,4 @@
-const CACHE_NAME = "gestion-veterinaria-static-v28";
+const CACHE_NAME = "gestion-veterinaria-static-v29";
 const ASSETS = [
   "./",
   "./index.html",
@@ -11,6 +11,7 @@ const ASSETS = [
   "./hotfix-visits-v056.js",
   "./hotfix-visits-v058.js",
   "./hotfix-visits-v059.js",
+  "./hotfix-visits-v059b.js",
   "./hotfix-version-v056.js",
   "./supabase-config.js",
   "./manifest.webmanifest"
