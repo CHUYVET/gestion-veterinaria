@@ -1,0 +1,267 @@
+#tab-visitas[data-visit-layout="v059"] {
+  display: block;
+}
+
+.clinical-board {
+  display: grid;
+  gap: 12px;
+}
+
+.clinical-main {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 14px;
+  box-shadow: var(--shadow-soft);
+}
+
+.clinical-record-strip,
+.clinical-footer-strip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  border: 1px solid #99e9dc;
+  background: #ecfffb;
+  border-radius: 8px;
+  padding: 9px 12px;
+  color: #006b5f;
+  font-weight: 800;
+}
+
+.clinical-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.clinical-top-grid {
+  display: grid;
+  grid-template-columns: 150px 170px minmax(200px, 1fr) minmax(280px, 0.9fr);
+  gap: 10px 14px;
+  margin-top: 12px;
+  align-items: start;
+}
+
+.clinical-top-grid .field textarea,
+.clinical-tab-panel textarea {
+  resize: vertical;
+}
+
+.clinical-complaint {
+  grid-column: 1 / 4;
+}
+
+.clinical-signs-panel {
+  grid-column: 4;
+  grid-row: 1 / span 3;
+}
+
+.clinical-diagnosis {
+  grid-column: span 2;
+}
+
+.clinical-tabs {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.case-tab {
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: 7px 7px 0 0;
+  padding: 9px 12px;
+  background: #eef5f3;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.case-tab.is-active {
+  background: #0b2422;
+  color: #fff;
+  border-color: #0b2422;
+}
+
+.clinical-tab-panel {
+  border: 1px solid var(--border);
+  border-top: 0;
+  background: #fff;
+  min-height: 315px;
+  padding: 14px;
+  border-radius: 0 0 8px 8px;
+}
+
+.clinical-tab-panel[hidden] {
+  display: none !important;
+}
+
+.exploration-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.exploration-header h3,
+.tab-title h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.exploration-header p,
+.tab-title p {
+  margin: 3px 0 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+}
+
+.inline-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  white-space: nowrap;
+  font-weight: 800;
+}
+
+.finding-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(180px, 1fr));
+  gap: 10px 14px;
+}
+
+.compact-form {
+  display: grid;
+  grid-template-columns: 160px minmax(200px, 1fr) minmax(200px, 1fr);
+  gap: 10px 12px;
+}
+
+.clinical-records {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.clinical-record-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+  gap: 8px;
+  max-height: 185px;
+  overflow: auto;
+  margin-top: 10px;
+}
+
+.clinical-record-button {
+  text-align: left;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 8px;
+  padding: 9px 10px;
+  cursor: pointer;
+}
+
+.clinical-record-button.is-active {
+  border-color: var(--primary);
+  box-shadow: inset 3px 0 0 var(--primary);
+}
+
+.record-title,
+.record-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.record-title {
+  font-weight: 900;
+}
+
+.record-meta {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+
+.case-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 10px;
+  max-height: 170px;
+  overflow: auto;
+}
+
+.case-note {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 9px 10px;
+  background: #fbfdfc;
+}
+
+.case-note .row-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-weight: 900;
+}
+
+.case-note .row-meta {
+  color: var(--muted);
+  margin-top: 4px;
+}
+
+.form-message.success {
+  color: #067a46;
+}
+
+.form-message.error {
+  color: #b42318;
+}
+
+@media (max-width: 1050px) {
+  .clinical-top-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .clinical-complaint,
+  .clinical-signs-panel,
+  .clinical-diagnosis {
+    grid-column: span 2;
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 720px) {
+  .clinical-main,
+  .clinical-records,
+  .clinical-tab-panel {
+    padding: 10px;
+  }
+  .clinical-top-grid,
+  .finding-grid,
+  .compact-form {
+    grid-template-columns: 1fr;
+  }
+  .clinical-complaint,
+  .clinical-signs-panel,
+  .clinical-diagnosis,
+  .span-2,
+  .span-3 {
+    grid-column: span 1;
+  }
+  .clinical-record-strip,
+  .clinical-footer-strip,
+  .exploration-header {
+    align-items: stretch;
+    flex-direction: column;
+  }
+  .clinical-actions,
+  .clinical-actions button {
+    width: 100%;
+  }
+  .inline-check {
+    white-space: normal;
+  }
+}
