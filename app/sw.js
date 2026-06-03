@@ -1,14 +1,16 @@
-const CACHE_NAME = "gestion-veterinaria-static-v27";
+const CACHE_NAME = "gestion-veterinaria-static-v28";
 const ASSETS = [
   "./",
   "./index.html",
   "./styles.css",
   "./hotfix-v049.css",
   "./hotfix-visits-v056.css",
+  "./hotfix-visits-v059.css",
   "./app.js",
   "./hotfix-v049.js",
   "./hotfix-visits-v056.js",
   "./hotfix-visits-v058.js",
+  "./hotfix-visits-v059.js",
   "./hotfix-version-v056.js",
   "./supabase-config.js",
   "./manifest.webmanifest"
